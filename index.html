@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <meta charset="UTF-8">
+    <title>Final</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="./style.css">
+
+  </head>
+    
+  <body>
+  <!-- Header -->
+<header class="header">
+  <div class="header-content">
+    <div class="logo">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="18" height="18" rx="2" />
+        <circle cx="8.5" cy="8.5" r="1.5" />
+        <path d="M21 15l-5-5L5 21" />
+      </svg>
+      SVG Library Pro
+    </div>
+    <div class="search-container">
+      <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8" />
+        <path d="m21 21-4.35-4.35" />
+      </svg>
+      <input type="text" class="search-input" placeholder="Search SVGs..." id="searchInput">
+    </div>
+    <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+        <polyline points="17 8 12 3 7 8" />
+        <line x1="12" y1="3" x2="12" y2="15" />
+      </svg>
+      Upload SVGs
+    </button>
+    <button class="btn btn-secondary" onclick="exportAsCode()" id="exportCodeBtn" style="display: none;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M16 18l2-2v8H6a2 2 0 0 1-2-2V2h12v6" />
+        <path d="M13 2v6h6" />
+        <polyline points="10 9 9 9 8 9" />
+        <path d="M10 13H8" />
+        <path d="M10 17H8" />
+      </svg>
+      Export as Code
+    </button>
+  </div>
+</header>
+
+<div class="container">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <h3>Filters</h3>
+
+    <div class="filter-section">
+      <label class="filter-label">Categories</label>
+      <div class="filter-chips" id="categoryFilters">
+        <span class="chip active" data-category="all">All</span>
+        <span class="chip" data-category="icons">Icons</span>
+        <span class="chip" data-category="logos">Logos</span>
+        <span class="chip" data-category="illustrations">Illustrations</span>
+      </div>
+    </div>
+
+    <div class="filter-section">
+      <label class="filter-label">Size</label>
+      <div class="filter-chips" id="sizeFilters">
+        <span class="chip active" data-size="all">All Sizes</span>
+        <span class="chip" data-size="small">Small</span>
+        <span class="chip" data-size="medium">Medium</span>
+        <span class="chip" data-size="large">Large</span>
+      </div>
+    </div>
+
+    <div class="filter-section">
+      <label class="filter-label">Color Mode</label>
+      <div class="filter-chips" id="colorFilters">
+        <span class="chip active" data-color="all">All</span>
+        <span class="chip" data-color="mono">Monochrome</span>
+        <span class="chip" data-color="multi">Multicolor</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Upload Area -->
+    <div class="upload-area" id="uploadArea">
+      <div class="upload-icon">📁</div>
+      <p class="upload-text">Drop SVG files here or click to browse</p>
+      <p class="upload-hint">Supports .svg files only • Can handle thousands of files</p>
+    </div>
+    <input type="file" id="fileInput" accept=".svg" multiple>
+
+    <!-- Loading Indicator -->
+    <div class="loading" id="loadingIndicator">
+      <div class="loading-spinner"></div>
+      <p>Processing SVGs...</p>
+    </div>
+
+    <!-- Content Header -->
+    <div class="content-header">
+      <h2 id="svgCount">0 SVGs</h2>
+      <div class="view-toggles">
+        <button class="view-btn active" data-view="grid">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7" />
+            <rect x="14" y="3" width="7" height="7" />
+            <rect x="3" y="14" width="7" height="7" />
+            <rect x="14" y="14" width="7" height="7" />
+          </svg>
+          Grid
+        </button>
+        <button class="view-btn" data-view="list">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="8" y1="6" x2="21" y2="6" />
+            <line x1="8" y1="12" x2="21" y2="12" />
+            <line x1="8" y1="18" x2="21" y2="18" />
+            <line x1="3" y1="6" x2="3.01" y2="6" />
+            <line x1="3" y1="12" x2="3.01" y2="12" />
+            <line x1="3" y1="18" x2="3.01" y2="18" />
+          </svg>
+          List
+        </button>
+      </div>
+    </div>
+
+    <!-- SVG Grid -->
+    <div class="svg-grid" id="svgGrid"></div>
+
+    <!-- SVG List -->
+    <div class="svg-list" id="svgList"></div>
+
+    <!-- Pagination -->
+<div class="paginationWrap">
+<div class="pagination-container">
+  <button class="nav-button" id="prevButton">
+    <svg class="paginationCaret" viewBox="0 0 24 24">
+      <path d="m15 18-6-6 6-6" />
+    </svg>
+    Prev
+  </button>
+
+  <div class="page-numbers" id="pageNumbers">
+    <button class="page-button" data-page="1">1</button>
+    <button class="page-button" data-page="2">2</button>
+    <button class="page-button" data-page="3">3</button>
+    <button class="page-button" data-page="4">4</button>
+    <button class="page-button" data-page="5">5</button>
+  </div>
+
+  <button class="nav-button" id="nextButton">
+    Next
+    <svg class="paginationCaret" viewBox="0 0 24 24">
+      <path d="m9 18 6-6-6-6" />
+    </svg>
+  </button>
+</div>
+</div>
+<script>
+  class Pagination {
+    constructor() {
+      this.active = 1;
+      this.maxPages = 5;
+      this.init();
+    }
+    init() {
+      this.prevButton = document.getElementById('prevButton');
+      this.nextButton = document.getElementById('nextButton');
+      this.pageButtons = document.querySelectorAll('.page-button');
+      // Add event listeners
+      this.prevButton.addEventListener('click', () => this.prev());
+      this.nextButton.addEventListener('click', () => this.next());
+      this.pageButtons.forEach(button => {
+        button.addEventListener('click', (e) => {
+          const page = parseInt(e.target.dataset.page);
+          this.setActive(page);
+        });
+      });
+      // Initialize the first page as active
+      this.updateUI();
+    }
+    setActive(page) {
+      if (page >= 1 && page <= this.maxPages) {
+        this.active = page;
+        this.updateUI();
+      }
+    }
+    next() {
+      if (this.active < this.maxPages) {
+        this.active++;
+        this.updateUI();
+      }
+    }
+    prev() {
+      if (this.active > 1) {
+        this.active--;
+        this.updateUI();
+      }
+    }
+    updateUI() {
+      // Update page buttons
+      this.pageButtons.forEach(button => {
+        const page = parseInt(button.dataset.page);
+        if (page === this.active) {
+          button.className = 'page-button filled';
+        } else {
+          button.className = 'page-button text';
+        }
+      });
+      // Update navigation buttons
+      this.prevButton.disabled = this.active === 1;
+      this.nextButton.disabled = this.active === this.maxPages;
+    }
+  }
+  // Initialize pagination when DOM is loaded
+  document.addEventListener('DOMContentLoaded', () => {
+    new Pagination();
+  });
+</script>
+  </main>
+</div>
+
+<!-- Modal -->
+<div class="modal" id="svgModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 class="modal-title" id="modalTitle">SVG Editor</h2>
+      <button class="close-btn" onclick="closeModal()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <div class="preview-section">
+        <div id="modalSvgPreview"></div>
+      </div>
+
+      <div class="controls-section">
+        <div class="control-group">
+          <label class="control-label">Size</label>
+          <div class="size-controls">
+            <input type="number" class="control-input" id="widthInput" placeholder="Width" value="100">
+            <button class="link-btn active" id="linkSizeBtn" title="Link dimensions">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+              </svg>
+            </button>
+            <input type="number" class="control-input" id="heightInput" placeholder="Height" value="100">
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label class="control-label">Fill Color</label>
+          <div class="color-picker-wrapper">
+            <input type="color" class="color-input" id="fillColorInput" value="#e2e8f0">
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label class="control-label">Background Color</label>
+          <div class="color-picker-wrapper">
+            <input type="color" class="color-input" id="bgColorInput" value="#1e293b">
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label class="control-label">Stroke Color</label>
+          <div class="color-picker-wrapper">
+            <input type="color" class="color-input" id="strokeColorInput" value="#e2e8f0">
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label class="control-label">Stroke Width</label>
+          <div class="slider-control">
+            <input type="range" class="slider" id="strokeWidthSlider" min="0" max="10" step="0.5" value="2">
+            <span class="slider-value" id="strokeWidthValue">2</span>
+          </div>
+        </div>
+
+        <!-- Advanced Controls -->
+        <div class="advanced-controls">
+          <div class="toggle-section">
+            <div class="toggle-header" onclick="toggleAdvanced(this)">
+              <span>Advanced Options</span>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </div>
+            <div class="toggle-content" id="advancedOptions">
+              <div class="control-group">
+                <label class="control-label">Opacity</label>
+                <div class="slider-control">
+                  <input type="range" class="slider" id="opacitySlider" min="0" max="100" value="100">
+                  <span class="slider-value" id="opacityValue">100%</span>
+                </div>
+              </div>
+
+              <div class="control-group">
+                <label class="control-label">Rotation</label>
+                <div class="slider-control">
+                  <input type="range" class="slider" id="rotationSlider" min="0" max="360" value="0">
+                  <span class="slider-value" id="rotationValue">0°</span>
+                </div>
+              </div>
+
+              <div class="control-group">
+                <label class="control-label">Drop Shadow</label>
+                <div class="slider-control">
+                  <input type="range" class="slider" id="shadowSlider" min="0" max="20" value="0">
+                  <span class="slider-value" id="shadowValue">0px</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="action-buttons">
+          <button class="btn btn-primary" onclick="downloadSVG()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            Download
+          </button>
+          <button class="btn btn-secondary" onclick="resetSettings()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="1 4 1 10 7 10" />
+              <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+            </svg>
+            Reset
+          </button>
+        </div>
+
+        <div class="code-preview">
+          <button class="copy-code-btn" onclick="copyCode()" title="Copy code">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+            </svg>
+          </button>
+          <pre id="codePreview"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Notification -->
+<div class="toast" id="toast">
+  <span class="toast-icon" id="toastIcon"></span>
+  <span id="toastMessage"></span>
+</div>
+    <script  src="./script.js"></script>
+
+  </body>
+  
+</html>
