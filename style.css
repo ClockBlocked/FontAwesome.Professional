@@ -24,6 +24,27 @@
     --gradient-3: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
 }
 
+
+
+/* Option 1: Easiest – icons use stroke="currentColor"
+   Set the container's text color to a soft white */
+.svg-preview svg,
+.svg-list-preview svg {
+  color: #f8fafc; /* very soft white */
+}
+
+/* If some icons use fill="currentColor" */
+.svg-preview svg *,
+.svg-list-preview svg * {
+  color: #f8fafc;
+}
+
+
+
+
+
+
+
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background: var(--background);
