@@ -737,7 +737,8 @@ body {
 }
 
 .control-label svg {
-    stroke: var(--primary);
+/**    stroke: var(--primary); **/
+    stroke: #f8fafc;
     margin-right: auto;
     margin-left: 0;
 }
