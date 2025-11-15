@@ -26,19 +26,101 @@ const defaultSettings = {
   shadow: 0
 };
 
+// ============================================
+// AUTOMATIC SVG LOADER FROM GITHUB
+// ============================================
+
+// Configure your repository details here
+const REPO_CONFIG = {
+  owner: "ClockBlocked",
+  repo: "FontAwesome.Professional",
+  svgFolder: "icons",
+  branch: "main"
+};
+
 // Initialize
 document.addEventListener("DOMContentLoaded", () => {
   initializeEventListeners();
-  loadDemoSVGs();
+  loadSVGsFromGitHub();
 });
+
+// Auto-load SVGs from GitHub repository
+async function loadSVGsFromGitHub() {
+  const loadingIndicator = document.getElementById("loadingIndicator");
+  const uploadArea = document.getElementById("uploadArea");
+  
+  loadingIndicator.classList.add("active");
+  uploadArea.style.display = "none";
+  loadingIndicator.querySelector("p").textContent = "Loading icons from repository...";
+
+  try {
+    const apiUrl = `https://api.github.com/repos/${REPO_CONFIG.owner}/${REPO_CONFIG.repo}/contents/${REPO_CONFIG.svgFolder}?ref=${REPO_CONFIG.branch}`;
+    
+    const response = await fetch(apiUrl);
+    
+    if (!response.ok) {
+      throw new Error(`GitHub API returned status ${response.status}`);
+    }
+
+    const files = await response.json();
+    
+    const svgFiles = files.filter(file => 
+      file.name.endsWith('.svg') && file.type === 'file'
+    );
+
+    if (svgFiles.length === 0) {
+      throw new Error("No SVG files found in the icons folder");
+    }
+
+    showToast(`Found ${svgFiles.length} SVG files. Loading...`, "success");
+
+    const batchSize = 50;
+    let processed = 0;
+
+    for (let i = 0; i < svgFiles.length; i += batchSize) {
+      const batch = svgFiles.slice(i, i + batchSize);
+      
+      await Promise.all(batch.map(async (file) => {
+        try {
+          const svgResponse = await fetch(file.download_url);
+          const svgContent = await svgResponse.text();
+          
+          addSvgToLibraryQuick(svgContent, file.name);
+          processed++;
+          
+          loadingIndicator.querySelector("p").textContent = 
+            `Loading icons... ${processed}/${svgFiles.length}`;
+        } catch (error) {
+          console.error(`Failed to load ${file.name}:`, error);
+        }
+      }));
+
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+
+    loadingIndicator.classList.remove("active");
+    uploadArea.style.display = "block";
+    
+    renderSVGs();
+    updateHeroCount();
+    showToast(`Successfully loaded ${processed} icons!`, "success");
+
+  } catch (error) {
+    console.error("Error loading SVGs from GitHub:", error);
+    loadingIndicator.classList.remove("active");
+    uploadArea.style.display = "block";
+    
+    showToast(`Failed to auto-load icons: ${error.message}. Please upload SVG files manually or check your icons folder.`, "error");
+    
+    loadDemoSVGs();
+  }
+}
 
 // Event Listeners
 function initializeEventListeners() {
-  // File upload
   const fileInput = document.getElementById("fileInput");
   fileInput.addEventListener("change", handleFileUpload);
 
-  // Drag and drop
   const uploadArea = document.getElementById("uploadArea");
   uploadArea.addEventListener("click", () => fileInput.click());
   uploadArea.addEventListener("dragover", (e) => {
@@ -50,35 +132,26 @@ function initializeEventListeners() {
   });
   uploadArea.addEventListener("drop", handleDrop);
 
-  // Search
   document.getElementById("searchInput").addEventListener("input", (e) => {
     filters.search = e.target.value.toLowerCase();
     renderSVGs();
   });
 
-  // View toggles
   document.querySelectorAll(".view-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
-      document
-        .querySelectorAll(".view-btn")
-        .forEach((b) => b.classList.remove("active"));
+      document.querySelectorAll(".view-btn").forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
       currentView = btn.dataset.view;
-      document.getElementById("svgGrid").style.display =
-        currentView === "grid" ? "grid" : "none";
-      document.getElementById("svgList").style.display =
-        currentView === "list" ? "flex" : "none";
+      document.getElementById("svgGrid").style.display = currentView === "grid" ? "grid" : "none";
+      document.getElementById("svgList").style.display = currentView === "list" ? "flex" : "none";
       renderSVGs();
     });
   });
 
-  // Filters
   document.querySelectorAll(".chip").forEach((chip) => {
     chip.addEventListener("click", () => {
       const parent = chip.parentElement;
-      parent
-        .querySelectorAll(".chip")
-        .forEach((c) => c.classList.remove("active"));
+      parent.querySelectorAll(".chip").forEach((c) => c.classList.remove("active"));
       chip.classList.add("active");
 
       if (parent.id === "categoryFilters") {
@@ -92,42 +165,20 @@ function initializeEventListeners() {
     });
   });
 
-  // Modal controls
-  document
-    .getElementById("linkSizeBtn")
-    .addEventListener("click", toggleLinkSize);
-  document
-    .getElementById("widthInput")
-    .addEventListener("input", handleSizeChange);
-  document
-    .getElementById("heightInput")
-    .addEventListener("input", handleSizeChange);
-  document
-    .getElementById("fillColorInput")
-    .addEventListener("input", updateSvgPreview);
-  document
-    .getElementById("bgColorInput")
-    .addEventListener("input", updateSvgPreview);
-  document
-    .getElementById("strokeColorInput")
-    .addEventListener("input", updateSvgPreview);
-  document
-    .getElementById("strokeWidthSlider")
-    .addEventListener("input", updateSvgPreview);
-  document
-    .getElementById("opacitySlider")
-    .addEventListener("input", updateSvgPreview);
-  document
-    .getElementById("rotationSlider")
-    .addEventListener("input", updateSvgPreview);
-  document
-    .getElementById("shadowSlider")
-    .addEventListener("input", updateSvgPreview);
+  document.getElementById("linkSizeBtn").addEventListener("click", toggleLinkSize);
+  document.getElementById("widthInput").addEventListener("input", handleSizeChange);
+  document.getElementById("heightInput").addEventListener("input", handleSizeChange);
+  document.getElementById("fillColorInput").addEventListener("input", updateSvgPreview);
+  document.getElementById("bgColorInput").addEventListener("input", updateSvgPreview);
+  document.getElementById("strokeColorInput").addEventListener("input", updateSvgPreview);
+  document.getElementById("strokeWidthSlider").addEventListener("input", updateSvgPreview);
+  document.getElementById("opacitySlider").addEventListener("input", updateSvgPreview);
+  document.getElementById("rotationSlider").addEventListener("input", updateSvgPreview);
+  document.getElementById("shadowSlider").addEventListener("input", updateSvgPreview);
 
-  // Update slider values
   document.querySelectorAll(".slider").forEach((slider) => {
     slider.addEventListener("input", (e) => {
-      const valueSpan = e.target.parentElement.querySelector(".slider-value");
+      const valueSpan = document.getElementById(e.target.id.replace("Slider", "Value"));
       if (valueSpan) {
         let value = e.target.value;
         if (e.target.id === "opacitySlider") value += "%";
@@ -138,9 +189,8 @@ function initializeEventListeners() {
     });
   });
 
-  // Close modal on backdrop click
   document.getElementById("svgModal").addEventListener("click", (e) => {
-    if (e.target.id === "svgModal") {
+    if (e.target.classList.contains("modal-backdrop") || e.target.id === "svgModal") {
       closeModal();
     }
   });
@@ -151,42 +201,38 @@ async function handleFileUpload(e) {
   const files = Array.from(e.target.files);
   if (files.length === 0) return;
 
-  // Show loading indicator
-  document.getElementById("loadingIndicator").classList.add("active");
-  document.getElementById("uploadArea").style.display = "none";
+  const loadingIndicator = document.getElementById("loadingIndicator");
+  const uploadArea = document.getElementById("uploadArea");
 
-  // Process files in batches to prevent UI freezing
+  loadingIndicator.classList.add("active");
+  uploadArea.style.display = "none";
+
   const batchSize = 100;
   let processed = 0;
 
   for (let i = 0; i < files.length; i += batchSize) {
     const batch = files.slice(i, i + batchSize);
-
-    // Process batch
     await processBatch(batch);
     processed += batch.length;
 
-    // Update loading message
-    document.querySelector(
-      "#loadingIndicator p"
-    ).textContent = `Processing SVGs... ${processed}/${files.length}`;
+    loadingIndicator.querySelector("#loadingIndicator p").textContent = 
+      `Processing SVGs... ${processed}/${files.length}`;
 
-    // Allow UI to update
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
 
-  // Hide loading and show upload area again
-  document.getElementById("loadingIndicator").classList.remove("active");
-  document.getElementById("uploadArea").style.display = "block";
+  loadingIndicator.classList.remove("active");
+  uploadArea.style.display = "block";
 
   renderSVGs();
+  updateHeroCount();
   showToast(`Successfully loaded ${files.length} SVGs!`, "success");
 }
 
 async function processBatch(files) {
   const promises = files.map((file) => {
     return new Promise((resolve) => {
-      if (file.type === "image/svg+xml") {
+      if (file.type === "image/svg+xml" || file.name.endsWith('.svg')) {
         const reader = new FileReader();
         reader.onload = (e) => {
           addSvgToLibraryQuick(e.target.result, file.name);
@@ -203,7 +249,6 @@ async function processBatch(files) {
   await Promise.all(promises);
 }
 
-// Optimized version for bulk loading
 function addSvgToLibraryQuick(content, name) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(content, "image/svg+xml");
@@ -215,7 +260,7 @@ function addSvgToLibraryQuick(content, name) {
       id,
       name: name.replace(".svg", ""),
       content,
-      category: "icons",
+      category: determineCategoryFromName(name),
       size: determineSize(svgElement),
       colorMode: determineColorMode(svgElement),
       settings: { ...defaultSettings }
@@ -223,11 +268,17 @@ function addSvgToLibraryQuick(content, name) {
 
     svgLibrary.push(svg);
 
-    // Show export button if we have SVGs
     if (svgLibrary.length > 0) {
       document.getElementById("exportCodeBtn").style.display = "flex";
     }
   }
+}
+
+function determineCategoryFromName(name) {
+  const lowerName = name.toLowerCase();
+  if (lowerName.includes("logo") || lowerName.includes("brand")) return "logos";
+  if (lowerName.includes("illustration") || lowerName.includes("illust")) return "illustrations";
+  return "icons";
 }
 
 async function handleDrop(e) {
@@ -235,44 +286,23 @@ async function handleDrop(e) {
   document.getElementById("uploadArea").classList.remove("dragover");
   const files = Array.from(e.dataTransfer.files);
 
-  // Create a fake event object to reuse handleFileUpload
   const fakeEvent = { target: { files } };
   await handleFileUpload(fakeEvent);
-}
-
-// SVG Management
-function addSvgToLibrary(content, name) {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(content, "image/svg+xml");
-  const svgElement = doc.querySelector("svg");
-
-  if (svgElement) {
-    const id = Date.now() + Math.random().toString(36).substr(2, 9);
-    const svg = {
-      id,
-      name: name.replace(".svg", ""),
-      content,
-      category: "icons", // Default category
-      size: determineSize(svgElement),
-      colorMode: determineColorMode(svgElement),
-      settings: { ...defaultSettings }
-    };
-
-    svgLibrary.push(svg);
-    renderSVGs();
-    showToast("SVG added successfully!", "success");
-
-    // Show export button if we have SVGs
-    if (svgLibrary.length > 0) {
-      document.getElementById("exportCodeBtn").style.display = "flex";
-    }
-  }
 }
 
 function determineSize(svgElement) {
   const width = parseInt(svgElement.getAttribute("width")) || 0;
   const height = parseInt(svgElement.getAttribute("height")) || 0;
-  const max = Math.max(width, height);
+  const viewBox = svgElement.getAttribute("viewBox");
+  
+  let max = Math.max(width, height);
+  
+  if (!max && viewBox) {
+    const parts = viewBox.split(" ");
+    if (parts.length === 4) {
+      max = Math.max(parseFloat(parts[2]), parseFloat(parts[3]));
+    }
+  }
 
   if (max <= 32) return "small";
   if (max <= 128) return "medium";
@@ -290,30 +320,28 @@ function determineColorMode(svgElement) {
   return uniqueColors.size > 2 ? "multi" : "mono";
 }
 
-// Rendering with Pagination
 function renderSVGs() {
-  // Filter SVGs
   filteredSVGs = svgLibrary.filter((svg) => {
-    if (filters.category !== "all" && svg.category !== filters.category)
-      return false;
+    if (filters.category !== "all" && svg.category !== filters.category) return false;
     if (filters.size !== "all" && svg.size !== filters.size) return false;
-    if (filters.color !== "all" && svg.colorMode !== filters.color)
-      return false;
-    if (filters.search && !svg.name.toLowerCase().includes(filters.search))
-      return false;
+    if (filters.color !== "all" && svg.colorMode !== filters.color) return false;
+    if (filters.search && !svg.name.toLowerCase().includes(filters.search)) return false;
     return true;
   });
 
-  // Reset to page 1 when filters change
   currentPage = 1;
+  document.getElementById("svgCount").textContent = `${filteredSVGs.length} SVG${filteredSVGs.length !== 1 ? 's' : ''}`;
 
-  // Update count
-  document.getElementById(
-    "svgCount"
-  ).textContent = `${filteredSVGs.length} SVGs`;
+  const filteredBadge = document.getElementById("filteredBadge");
+  if (filteredSVGs.length !== svgLibrary.length) {
+    filteredBadge.textContent = `of ${svgLibrary.length}`;
+    filteredBadge.style.display = "inline-block";
+  } else {
+    filteredBadge.style.display = "none";
+  }
 
-  // Render current page
   renderCurrentPage();
+  updateHeroCount();
 }
 
 function renderCurrentPage() {
@@ -321,58 +349,65 @@ function renderCurrentPage() {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = Math.min(startIndex + itemsPerPage, filteredSVGs.length);
 
-  // Get only the SVGs for current page
   const pageSVGs = filteredSVGs.slice(startIndex, endIndex);
 
-  // Clear previous content (important for memory management)
   if (currentView === "grid") {
     const grid = document.getElementById("svgGrid");
-    grid.innerHTML = ""; // Clear all previous SVGs
+    grid.innerHTML = "";
     renderGrid(pageSVGs);
   } else {
     const list = document.getElementById("svgList");
-    list.innerHTML = ""; // Clear all previous SVGs
+    list.innerHTML = "";
     renderList(pageSVGs);
   }
 
-  // Update pagination UI
   updatePaginationUI(totalPages);
-
-  // Scroll to top of content
   window.scrollTo({ top: 200, behavior: "smooth" });
 }
 
 function updatePaginationUI(totalPages) {
-  const pageInfo = document.getElementById("pageInfo");
-  const prevBtn = document.getElementById("prevBtn");
-  const nextBtn = document.getElementById("nextBtn");
-  const pagination = document.getElementById("pagination");
+  const pageNumbers = document.getElementById("pageNumbers");
+  const prevBtn = document.getElementById("prevButton");
+  const nextBtn = document.getElementById("nextButton");
 
-  // Show/hide pagination
-  pagination.style.display = totalPages > 1 ? "flex" : "none";
-
-  // Update page info
-  pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
-
-  // Update button states
   prevBtn.disabled = currentPage === 1;
-  nextBtn.disabled = currentPage === totalPages;
-}
+  nextBtn.disabled = currentPage === totalPages || totalPages === 0;
 
-function changePage(direction) {
-  const totalPages = Math.ceil(filteredSVGs.length / itemsPerPage);
-  const newPage = currentPage + direction;
-
-  if (newPage >= 1 && newPage <= totalPages) {
-    currentPage = newPage;
-    renderCurrentPage();
+  pageNumbers.innerHTML = "";
+  
+  const maxButtons = 5;
+  let startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2));
+  let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+  
+  if (endPage - startPage < maxButtons - 1) {
+    startPage = Math.max(1, endPage - maxButtons + 1);
   }
-}
 
-function changePageSize(newSize) {
-  itemsPerPage = parseInt(newSize);
-  currentPage = 1; // Reset to first page
-  renderCurrentPage();
+  for (let i = startPage; i <= endPage; i++) {
+    const btn = document.createElement("button");
+    btn.className = i === currentPage ? "page-button filled" : "page-button text";
+    btn.textContent = i;
+    btn.dataset.page = i;
+    btn.addEventListener("click", () => {
+      currentPage = i;
+      renderCurrentPage();
+    });
+    pageNumbers.appendChild(btn);
+  }
+
+  prevBtn.onclick = () => {
+    if (currentPage > 1) {
+      currentPage--;
+      renderCurrentPage();
+    }
+  };
+
+  nextBtn.onclick = () => {
+    if (currentPage < totalPages) {
+      currentPage++;
+      renderCurrentPage();
+    }
+  };
 }
 
 function renderGrid(svgs) {
@@ -380,11 +415,11 @@ function renderGrid(svgs) {
   grid.innerHTML = svgs
     .map(
       (svg) => `
-                <div class="svg-card" onclick="openModal('${svg.id}')">
-                    <div class="svg-preview">${svg.content}</div>
-                    <div class="svg-name">${svg.name}</div>
-                </div>
-            `
+        <div class="svg-card" onclick="openModal('${svg.id}')">
+          <div class="svg-preview">${svg.content}</div>
+          <div class="svg-name">${svg.name}</div>
+        </div>
+      `
     )
     .join("");
 }
@@ -394,19 +429,18 @@ function renderList(svgs) {
   list.innerHTML = svgs
     .map(
       (svg) => `
-                <div class="svg-list-item" onclick="openModal('${svg.id}')">
-                    <div class="svg-list-preview">${svg.content}</div>
-                    <div class="svg-list-info">
-                        <div class="svg-list-name">${svg.name}</div>
-                        <div class="svg-list-meta">${svg.size} • ${svg.colorMode}</div>
-                    </div>
-                </div>
-            `
+        <div class="svg-list-item" onclick="openModal('${svg.id}')">
+          <div class="svg-list-preview">${svg.content}</div>
+          <div class="svg-list-info">
+            <div class="svg-list-name">${svg.name}</div>
+            <div class="svg-list-meta">${svg.size} • ${svg.colorMode}</div>
+          </div>
+        </div>
+      `
     )
     .join("");
 }
 
-// Modal functions
 function openModal(id) {
   currentSvg = svgLibrary.find((svg) => svg.id === id);
   if (!currentSvg) return;
@@ -414,7 +448,6 @@ function openModal(id) {
   document.getElementById("modalTitle").textContent = currentSvg.name;
   document.getElementById("svgModal").style.display = "flex";
 
-  // Load current settings
   const settings = currentSvg.settings;
   document.getElementById("widthInput").value = settings.width;
   document.getElementById("heightInput").value = settings.height;
@@ -422,13 +455,11 @@ function openModal(id) {
   document.getElementById("bgColorInput").value = settings.bgColor;
   document.getElementById("strokeColorInput").value = settings.strokeColor;
   document.getElementById("strokeWidthSlider").value = settings.strokeWidth;
-  document.getElementById("strokeWidthValue").textContent =
-    settings.strokeWidth;
+  document.getElementById("strokeWidthValue").textContent = settings.strokeWidth;
   document.getElementById("opacitySlider").value = settings.opacity;
   document.getElementById("opacityValue").textContent = settings.opacity + "%";
   document.getElementById("rotationSlider").value = settings.rotation;
-  document.getElementById("rotationValue").textContent =
-    settings.rotation + "°";
+  document.getElementById("rotationValue").textContent = settings.rotation + "°";
   document.getElementById("shadowSlider").value = settings.shadow;
   document.getElementById("shadowValue").textContent = settings.shadow + "px";
 
@@ -446,23 +477,26 @@ function toggleLinkSize() {
 }
 
 function handleSizeChange(e) {
-  if (!linkedSize) return;
+  if (!linkedSize) {
+    updateSvgPreview();
+    return;
+  }
 
   const width = parseInt(document.getElementById("widthInput").value) || 100;
   const height = parseInt(document.getElementById("heightInput").value) || 100;
-  const aspectRatio = currentSvg
-    ? (parseInt(currentSvg.content.match(/width="(\d+)"/)?.[1]) || 100) /
-      (parseInt(currentSvg.content.match(/height="(\d+)"/)?.[1]) || 100)
-    : 1;
+  
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(currentSvg.content, "image/svg+xml");
+  const svgElement = doc.querySelector("svg");
+  
+  const origWidth = parseInt(svgElement.getAttribute("width")) || 100;
+  const origHeight = parseInt(svgElement.getAttribute("height")) || 100;
+  const aspectRatio = origWidth / origHeight;
 
   if (e.target.id === "widthInput") {
-    document.getElementById("heightInput").value = Math.round(
-      width / aspectRatio
-    );
+    document.getElementById("heightInput").value = Math.round(width / aspectRatio);
   } else {
-    document.getElementById("widthInput").value = Math.round(
-      height * aspectRatio
-    );
+    document.getElementById("widthInput").value = Math.round(height * aspectRatio);
   }
 
   updateSvgPreview();
@@ -481,16 +515,13 @@ function updateSvgPreview() {
   const rotation = document.getElementById("rotationSlider").value;
   const shadow = document.getElementById("shadowSlider").value;
 
-  // Parse and modify SVG
   const parser = new DOMParser();
   const doc = parser.parseFromString(currentSvg.content, "image/svg+xml");
   const svgElement = doc.querySelector("svg");
 
-  // Set dimensions
   svgElement.setAttribute("width", width);
   svgElement.setAttribute("height", height);
 
-  // Apply styles
   svgElement.style.backgroundColor = bgColor;
   svgElement.style.opacity = opacity;
   svgElement.style.transform = `rotate(${rotation}deg)`;
@@ -499,29 +530,23 @@ function updateSvgPreview() {
       ? `drop-shadow(0 ${shadow}px ${shadow * 2}px rgba(0, 0, 0, 0.3))`
       : "none";
 
-  // Update fill and stroke colors
-  doc
-    .querySelectorAll("path, circle, rect, ellipse, polygon, polyline")
-    .forEach((el) => {
-      if (el.getAttribute("fill") && el.getAttribute("fill") !== "none") {
-        el.setAttribute("fill", fillColor);
-      }
-      if (el.getAttribute("stroke") && el.getAttribute("stroke") !== "none") {
-        el.setAttribute("stroke", strokeColor);
-        el.setAttribute("stroke-width", strokeWidth);
-      }
-    });
+  doc.querySelectorAll("path, circle, rect, ellipse, polygon, polyline, line").forEach((el) => {
+    if (el.getAttribute("fill") && el.getAttribute("fill") !== "none") {
+      el.setAttribute("fill", fillColor);
+    }
+    if (el.getAttribute("stroke") && el.getAttribute("stroke") !== "none") {
+      el.setAttribute("stroke", strokeColor);
+      el.setAttribute("stroke-width", strokeWidth);
+    }
+  });
 
-  // Update preview
   const serializer = new XMLSerializer();
   const svgString = serializer.serializeToString(svgElement);
   document.getElementById("modalSvgPreview").innerHTML = svgString;
 
-  // Update code preview
   const formattedCode = formatSvgCode(svgString);
   document.getElementById("codePreview").textContent = formattedCode;
 
-  // Save settings
   currentSvg.settings = {
     width,
     height,
@@ -536,7 +561,6 @@ function updateSvgPreview() {
 }
 
 function formatSvgCode(code) {
-  // Basic formatting for readability
   return code
     .replace(/></g, ">\n<")
     .replace(/(\w+)="([^"]*)"/g, '\n  $1="$2"')
@@ -546,7 +570,6 @@ function formatSvgCode(code) {
 
 function resetSettings() {
   if (!currentSvg) return;
-
   currentSvg.settings = { ...defaultSettings };
   openModal(currentSvg.id);
 }
@@ -572,21 +595,19 @@ function copyCode() {
   const code = document.getElementById("codePreview").textContent;
   navigator.clipboard.writeText(code).then(() => {
     const btn = document.querySelector(".copy-code-btn");
+    const originalHTML = btn.innerHTML;
+    
     btn.classList.add("copied");
     btn.innerHTML = `
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="20 6 9 17 4 12"/>
-                    </svg>
-                `;
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+      Copied!
+    `;
 
     setTimeout(() => {
       btn.classList.remove("copied");
-      btn.innerHTML = `
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                        </svg>
-                    `;
+      btn.innerHTML = originalHTML;
     }, 2000);
 
     showToast("Code copied to clipboard!", "success");
@@ -594,12 +615,9 @@ function copyCode() {
 }
 
 function toggleAdvanced(header) {
-  const content = header.nextElementSibling;
+  const content = document.getElementById("advancedOptions");
   content.classList.toggle("active");
-  const arrow = header.querySelector("svg");
-  arrow.style.transform = content.classList.contains("active")
-    ? "rotate(180deg)"
-    : "rotate(0)";
+  header.classList.toggle("active");
 }
 
 function showToast(message, type = "success") {
@@ -622,39 +640,32 @@ function showToast(message, type = "success") {
   }, 3000);
 }
 
-// Export functionality
 function exportAsCode() {
   if (svgLibrary.length === 0) {
     showToast("No SVGs to export!", "error");
     return;
   }
 
-  // Create the array in the exact format of demoSVGs
   const svgArray = svgLibrary.map((svg) => {
-    // Clean up the SVG content for better formatting
     const cleanContent = svg.content
       .replace(/\n/g, "")
       .replace(/\s+/g, " ")
       .replace(/> </g, "><")
       .trim();
 
-    return `        {
-            name: '${svg.name}',
-            content: '${cleanContent}'
-        }`;
+    return `  {
+    name: '${svg.name}',
+    content: '${cleanContent}'
+  }`;
   });
 
-  // Create the complete code structure
-  const code = `const demoSVGs = [
-${svgArray.join(",\n")}
-    ];`;
+  const code = `const fontAwesomeIcons = [\n${svgArray.join(",\n")}\n];`;
 
-  // Create and download the file
   const blob = new Blob([code], { type: "text/javascript" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = "svg-library-array.js";
+  a.download = "fontawesome-icons-array.js";
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -663,27 +674,69 @@ ${svgArray.join(",\n")}
   showToast(`Exported ${svgLibrary.length} SVGs as code!`, "success");
 }
 
-// Load demo SVGs
+function updateHeroCount() {
+  const heroCount = document.getElementById("heroIconCount");
+  if (heroCount) {
+    animateNumber(heroCount, 0, svgLibrary.length, 1000);
+  }
+}
+
+function animateNumber(element, start, end, duration) {
+  const range = end - start;
+  const increment = range / (duration / 16);
+  let current = start;
+
+  const timer = setInterval(() => {
+    current += increment;
+    if (current >= end) {
+      current = end;
+      clearInterval(timer);
+    }
+    element.textContent = Math.floor(current).toLocaleString();
+  }, 16);
+}
+
+function resetFilters() {
+  filters = {
+    category: "all",
+    size: "all",
+    color: "all",
+    search: ""
+  };
+
+  document.getElementById("searchInput").value = "";
+  
+  document.querySelectorAll(".chip").forEach(chip => {
+    chip.classList.remove("active");
+    if (chip.dataset.category === "all" || chip.dataset.size === "all" || chip.dataset.color === "all") {
+      chip.classList.add("active");
+    }
+  });
+
+  renderSVGs();
+  showToast("Filters reset", "success");
+}
+
 function loadDemoSVGs() {
   const demoSVGs = [
     {
       name: "Home",
-      content:
-        '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>'
+      content: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>'
     },
     {
       name: "Settings",
-      content:
-        '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6m4.22-10.22 4.24-4.24m-4.24 12.68 4.24 4.24M20 12h-6m-6 0H2m4.22-4.22L1.98 3.54m4.24 12.68-4.24 4.24"/></svg>'
+      content: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6"/></svg>'
     },
     {
       name: "User",
-      content:
-        '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>'
+      content: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>'
     }
   ];
 
   demoSVGs.forEach((svg) => {
-    addSvgToLibrary(svg.content, svg.name);
+    addSvgToLibraryQuick(svg.content, svg.name);
   });
+
+  renderSVGs();
+  updateHeroCount();
 }
