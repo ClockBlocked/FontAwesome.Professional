@@ -249,6 +249,11 @@ async function processBatch(files) {
   await Promise.all(promises);
 }
 
+
+
+
+
+/**
 function addSvgToLibraryQuick(content, name) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(content, "image/svg+xml");
@@ -273,6 +278,25 @@ function addSvgToLibraryQuick(content, name) {
     }
   }
 }
+***/
+
+
+
+function addSvgToLibraryQuick(content, name) {
+  // First, try to treat it as a sprite sheet
+  if (ingestSpriteSheet(content, name)) {
+    return; // handled all <symbol> entries
+  }
+
+  // Fallback: single-icon SVG
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(content, "image/svg+xml");
+  const svgElement = doc.querySelector("svg");
+  if (!svgElement) return;
+
+  addSvgRecord(content, name.replace(/\.svg$/i, ""), svgElement);
+}
+
 
 function determineCategoryFromName(name) {
   const lowerName = name.toLowerCase();
@@ -740,3 +764,78 @@ function loadDemoSVGs() {
   renderSVGs();
   updateHeroCount();
 }
+
+
+
+
+
+/** N E W **/
+function addSvgRecord(content, name, svgElement) {
+  const id = Date.now() + Math.random().toString(36).substr(2, 9);
+  const svg = {
+    id,
+    name,
+    content,
+    category: "icons",
+    size: determineSize(svgElement),
+    colorMode: determineColorMode(svgElement),
+    settings: { ...defaultSettings }
+  };
+  svgLibrary.push(svg);
+  if (svgLibrary.length > 0) {
+    document.getElementById("exportCodeBtn").style.display = "flex";
+  }
+}
+
+function ingestSpriteSheet(content, fileName) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(content, "image/svg+xml");
+
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const symbols = Array.from(doc.getElementsByTagNameNS(SVG_NS, "symbol"));
+
+  // If nothing found via namespace-aware lookup, try a loose fallback
+  const looseSymbols = symbols.length
+    ? symbols
+    : Array.from(doc.querySelectorAll("symbol, [id][viewBox]"));
+
+  if (looseSymbols.length === 0) return false;
+
+  const sheetViewBox =
+    doc.documentElement.getAttribute("viewBox") || "0 0 24 24";
+
+  looseSymbols.forEach((sym) => {
+    // Skip container symbols that only wrap other symbols (no graphic children)
+    const hasGraphicChildren = sym.querySelector(
+      "path, rect, circle, ellipse, polygon, polyline, line, g, use"
+    );
+    if (!hasGraphicChildren) return;
+
+    const id = sym.getAttribute("id") || "icon";
+    const viewBox = sym.getAttribute("viewBox") || sheetViewBox;
+
+    // Build standalone <svg> by cloning the symbol’s children
+    const outDoc = document.implementation.createDocument(SVG_NS, "svg", null);
+    const svgOut = outDoc.documentElement;
+    svgOut.setAttribute("xmlns", SVG_NS);
+    svgOut.setAttribute("viewBox", viewBox);
+    svgOut.setAttribute("width", "24");
+    svgOut.setAttribute("height", "24");
+
+    Array.from(sym.childNodes).forEach((node) => {
+      svgOut.appendChild(node.cloneNode(true));
+    });
+
+    const serializer = new XMLSerializer();
+    const svgString = serializer.serializeToString(svgOut);
+
+    // Name format: spriteFileName/iconId
+    const iconName = `${fileName.replace(/\.svg$/i, "")}/${id}`;
+    addSvgRecord(svgString, iconName, svgOut);
+  });
+
+  return true;
+}
+
+
+
